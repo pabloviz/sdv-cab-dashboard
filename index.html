@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmark Dashboard v1</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <div class="brand-title">Benchmark Dashboard</div>
+        <div class="brand-sub">runs entirely in your browser</div>
+      </div>
+    </div>
+
+    <section class="filter-group" id="group-files">
+      <h2>Files</h2>
+
+      <label class="field">
+        <span class="field-label">Logs folder <em>required</em></span>
+      </label>
+      <button id="chooseFolderBtn" class="btn btn-primary">Choose folder&hellip;</button>
+      <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
+
+      <div class="or-divider">or</div>
+
+      <label class="field">
+        <span class="field-label">Manifest URL <small>JSON, for HTTP(S)-hosted logs</small></span>
+        <input type="text" id="manifestUrl" placeholder="https://example.com/logs/index.json" autocomplete="off">
+      </label>
+      <button id="loadUrlBtn" class="btn btn-small" style="width:100%;">Load from URL</button>
+      <p class="hint">Points at a JSON file listing your <code>.log</code> paths relative to itself, e.g. <code>{"files": ["banana_26-09-01-09_25_13/axpy.log", ...]}</code> &mdash; generate one with <code>tools/make_manifest.py</code>. The server must send CORS headers. Browsers can't fetch <code>ftp://</code> URLs directly &mdash; expose the folder over HTTP(S) instead.</p>
+
+      <label class="field" style="margin-top:10px;">
+        <span class="field-label">Run type <em>required</em></span>
+        <select id="mode">
+          <option value="seq">SEQ</option>
+          <option value="omp">OMP</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Benchmark <small>comma-separated, blank = all</small></span>
+        <input type="text" id="benchmarks" placeholder="axpy, fft, dot" autocomplete="off">
+        <div class="chips" id="benchmarkChips"></div>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Platform <small>comma-separated, blank = all</small></span>
+        <input type="text" id="platforms" placeholder="unmatched, pioneer" autocomplete="off">
+        <div class="chips" id="platformChips"></div>
+      </label>
+
+      <div class="status-line" id="loadStatus"></div>
+    </section>
+
+    <section class="filter-group" id="group-plot">
+      <h2>Plot</h2>
+
+      <label class="field">
+        <span class="field-label">Aggregation</span>
+        <select id="agg">
+          <option value="max" selected>max</option>
+          <option value="min">min</option>
+          <option value="avg">avg</option>
+          <option value="errorbars">error bars (avg &plusmn; stdev)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Kind</span>
+        <select id="kind">
+          <option value="line">line</option>
+          <option value="points">points</option>
+          <option value="bars">bars</option>
+          <option value="candlestick">candlestick</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">X type</span>
+        <select id="xType">
+          <option value="text">text (equally spaced)</option>
+          <option value="numeric">numeric (by value)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">X axis</span>
+        <select id="xAxis"></select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Series <small>groups lines/bars</small></span>
+        <select id="seriesCol"></select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Y axis</span>
+        <select id="yAxis"></select>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">Trim low <small>drop N smallest</small></span>
+          <input type="number" id="trimLow" min="0" step="1" value="0">
+        </label>
+        <label class="field">
+          <span class="field-label">Trim high <small>drop N largest</small></span>
+          <input type="number" id="trimHigh" min="0" step="1" value="0">
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">Same experiment = same <small>comma-separated columns</small></span>
+        <input type="text" id="trimGroupCols" placeholder="Machine, Benchmark, N, Kernel, OMP_THREADS" autocomplete="off">
+      </label>
+      <p class="hint">Trimming drops the N smallest / largest raw values <em>within each group of rows sharing identical values for the columns above</em> (typically different RunTimestamps of the same setup) &mdash; before aggregation. Leave blank to trim across everything landing in the same chart point regardless of other columns.</p>
+
+      <label class="field field-checkbox">
+        <input type="checkbox" id="showLabels">
+        <span class="field-label" style="display:inline;">Show Y-value labels on points</span>
+      </label>
+    </section>
+
+    <section class="filter-group" id="group-columns">
+      <h2>Column filters <small>up to 6, optional</small></h2>
+      <p class="hint">Values accept <code>Maximum</code> / <code>Minimum</code> as a live keyword, resolved <strong>per benchmark</strong> (e.g. column N, values "Maximum" &rarr; the largest N of each benchmark's own log file). A value of the form <code>/pattern/flags</code> is a regular expression (e.g. <code>/ref/i</code> matches any Kernel containing "ref", case-insensitive). Click a column to see its values below.</p>
+      <div id="columnFilters"></div>
+    </section>
+  </aside>
+
+  <main class="main">
+    <header class="main-header">
+      <div id="mainTitle" class="main-title">No data loaded yet</div>
+      <div id="mainMeta" class="main-meta"></div>
+    </header>
+
+    <section class="chart-panel">
+      <div id="chartEmpty" class="empty-state">
+        <p>Click <strong>Choose folder&hellip;</strong>, pick the folder containing your run subfolders, then pick a run type.</p>
+      </div>
+      <div id="legend" class="legend"></div>
+      <svg id="chart" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet"></svg>
+    </section>
+
+    <section class="table-panel">
+      <div class="table-tabs">
+        <button class="tab-btn active" data-tab="summary">Summary</button>
+        <button class="tab-btn" data-tab="plotdata">Plot data</button>
+        <button class="tab-btn" data-tab="raw">Raw rows</button>
+      </div>
+      <div class="table-scroll" id="summaryTableWrap">
+        <table id="summaryTable"></table>
+      </div>
+      <div class="table-scroll hidden" id="plotDataWrap">
+        <div class="plot-data-toolbar">
+          <button id="copyPlotDataBtn" class="btn btn-small">Copy</button>
+          <span class="hint" style="margin:0;">Tab-separated, ready to paste into a spreadsheet.</span>
+        </div>
+        <textarea id="plotDataText" class="plot-data-textarea" readonly spellcheck="false"></textarea>
+      </div>
+      <div class="table-scroll hidden" id="rawTableWrap">
+        <table id="rawTable"></table>
+      </div>
+    </section>
+  </main>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
