@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Benchmark Dashboard v1</title>
+<title>Benchmark Dashboard</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -106,6 +106,15 @@
         <select id="yAxis"></select>
       </label>
 
+      <label class="field field-checkbox">
+        <input type="checkbox" id="showLabels">
+        <span class="field-label" style="display:inline;">Show Y-value labels on points</span>
+      </label>
+    </section>
+
+    <section class="filter-group" id="group-trim">
+      <h2>Trim data</h2>
+
       <div class="field-row">
         <label class="field">
           <span class="field-label">Trim low <small>drop N smallest</small></span>
@@ -118,14 +127,9 @@
       </div>
       <label class="field">
         <span class="field-label">Same experiment = same <small>comma-separated columns</small></span>
-        <input type="text" id="trimGroupCols" placeholder="Machine, Benchmark, N, Kernel, OMP_THREADS" autocomplete="off">
+        <input type="text" id="trimGroupCols" value="Platform, Benchmark, N, Kernel, Code, OMP_THREADS" autocomplete="off">
       </label>
-      <p class="hint">Trimming drops the N smallest / largest raw values <em>within each group of rows sharing identical values for the columns above</em> (typically different RunTimestamps of the same setup) &mdash; before aggregation. Leave blank to trim across everything landing in the same chart point regardless of other columns.</p>
-
-      <label class="field field-checkbox">
-        <input type="checkbox" id="showLabels">
-        <span class="field-label" style="display:inline;">Show Y-value labels on points</span>
-      </label>
+      <p class="hint">Trimming drops the N smallest / largest raw values <em>within each group of rows sharing identical values for the columns above</em> (typically different RunTimestamps of the same setup) &mdash; before aggregation, and never removes the last surviving value of a group. Leave blank to trim across everything landing in the same chart point regardless of other columns.</p>
     </section>
 
     <section class="filter-group" id="group-columns">
